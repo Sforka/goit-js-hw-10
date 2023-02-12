@@ -3,7 +3,7 @@ import debounce from 'lodash.debounce';
 import { Notify } from 'notiflix';
 import fetchCountries from './js/fetchCountries';
 
-const DEBOUNCE_DELAY = 300;
+const DEBOUNCE_DELAY = 1000;
 
 const refs = {
   searchInput: document.querySelector('[id="search-box"]'),
@@ -11,29 +11,45 @@ const refs = {
   countryInfo: document.querySelector('.country-info'),
 };
 
-function renderCountries(data) {
-  refs.countryInfo.innerHTML = '';
-  if (data.length > 10) {
-    return Notify.info(
-      'Too many matches found. Please enter a more specific name.'
-    );
+function searchCountries() {
+  const inputValue = refs.searchInput.value.trim();
+  if (inputValue !== '') {
+    fetchCountries(inputValue)
+      .then(data => {
+        if (data.length > 10) {
+          return Notify.info(
+            'Too many matches found. Please enter a more specific name.'
+          );
+        } else if (data.length !== 1) {
+          renderCountriesList(data);
+        } else {
+          renderCountriesInfo(data);
+        }
+      })
+      .catch(error => {
+        Notify.failure('please enter a name');
+      });
+  } else {
+    clearCountryData();
   }
+}
+
+function renderCountriesInfo(data) {
+  clearCountryData();
+
   const markup = data
     .map(country => {
-      if (data.length === 1) {
-        return `
-        <ul class="country-item">
-          <li class="country-name"><img src="${country.flags.svg}" alt="">  ${country.name}</li>
-          <li class="country-capital">Capital: ${country.capital}</li>
-          <li class="country-population">Population: ${country.population}</li>
-          <li class="country-language">Language: ${country.languages[0].name}</li>
-        
-        `;
-      }
       return `
         <ul class="country-item">
-          <li class="country-name"><img src="${country.flags.svg}" alt="">  ${country.name}</li>
-        </ul>`;
+          <li class="country-name"><img src="${country.flags.svg}" alt="">  ${
+        country.name.official
+      }</li>
+          <li class="country-capital">Capital: ${country.capital}</li>
+          <li class="country-population">Population: ${country.population}</li>
+          <li class="country-language">Language: ${Object.values(
+            country.languages
+          )}</li>
+        `;
     })
     .join('');
   refs.countryInfo.insertAdjacentHTML('beforeend', markup);
@@ -44,15 +60,19 @@ refs.searchInput.addEventListener(
   debounce(searchCountries, DEBOUNCE_DELAY)
 );
 
-function searchCountries() {
-  const inputValue = refs.searchInput.value.trim();
-  if (inputValue !== '') {
-    fetchCountries(inputValue)
-      .then(data => renderCountries(data))
-      .catch(error => {
-        Notify.failure('Oops, there is no country with that name');
-      });
-  } else {
-    refs.countryInfo.innerHTML = '';
-  }
+function renderCountriesList(data) {
+  clearCountryData();
+  const markup = data
+    .map(country => {
+      return `
+          <li class="country-name"><img src="${country.flags.svg}" alt="">  ${country.name.official}</li>
+        `;
+    })
+    .join('');
+  refs.countriesList.insertAdjacentHTML('beforeend', markup);
+}
+
+function clearCountryData() {
+  refs.countriesList.innerHTML = '';
+  refs.countryInfo.innerHTML = '';
 }
